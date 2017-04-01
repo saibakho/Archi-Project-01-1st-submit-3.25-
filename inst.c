@@ -22,6 +22,7 @@ int readInst(int index)	// four bytes
 	int immediate = binToInt(bin, 15, 0);	// warning for the extention from 16bit to 32bit (signed)
 	int address   = binToUnsInt(bin, 25, 0);	//
 //===============================================
+	unsigned int tempUns;
 	unsigned int _dest;
 	unsigned int _hi = HI;
 	unsigned int _lo = LO;
@@ -69,15 +70,15 @@ int readInst(int index)	// four bytes
 		//=========================================================================
 			// shift
 			case 0x00 :		// sll
-				reg[rd] = reg[rt] << shamt;
+				tempUns = (unsigned int)reg[rt];
+				reg[rd] = tempUns << shamt;
 				break;
 			case 0x02 :		// srl
-				reg[rd] = reg[rt] >> shamt;
+				tempUns = (unsigned int)reg[rt];
+				reg[rd] = tempUns >> shamt;
 				break;
 			case 0x03 :		// sra
-				reg[rd] = reg[rt] << shamt;
-				if ( (reg[rt] >> 31 ) == 1 )
-					reg[rd] = reg[rd] | ( -1 << ( 32 - shamt ) );
+				reg[rd] = (int)reg[rt] >> shamt;
 				break;
 		//=========================================================================
 			// jr
@@ -156,7 +157,7 @@ int readInst(int index)	// four bytes
 				errorList[1] = isOverflow(reg[rs], immediate);
 				reg[rt] = memory[ reg[rs]/4 + immediate/4 ];
 				// err
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				errorList[4] = (reg[rs]+immediate)%4 != 0 ? 1 : 0 ;
 				break;
 			case 0x21 :		// lh
@@ -165,7 +166,7 @@ int readInst(int index)	// four bytes
 				intToBin(reg[rt], buffer, 32);
 				reg[rt] = immediate%4 == 2 ? binToInt(buffer, 15, 0) : binToInt(buffer, 31, 16);
 				// err
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				errorList[4] = (reg[rs]+immediate)%2 != 0 ? 1 : 0 ;
 				break;
 			case 0x25 :		// lhu
@@ -174,7 +175,7 @@ int readInst(int index)	// four bytes
 				intToBin(reg[rt], buffer, 32);
 				reg[rt] = immediate%4 == 2 ? binToUnsInt(buffer, 15, 0) : binToUnsInt(buffer, 31, 16);
 				// err
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				errorList[4] = (reg[rs]+immediate)%2 != 0 ? 1 : 0 ;
 				break;
 			case 0x20 :		// lb
@@ -187,7 +188,7 @@ int readInst(int index)	// four bytes
 					case 2 :	reg[rt] = binToInt(buffer, 15,  8);	break;
 					case 3 :	reg[rt] = binToInt(buffer,  7,  0);	break;
 				}	// err
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				break;
 			case 0x24 :		// lbu
 				errorList[1] = isOverflow(reg[rs], immediate);
@@ -199,39 +200,41 @@ int readInst(int index)	// four bytes
 					case 2 :	reg[rt] = binToUnsInt(buffer, 15,  8);	break;
 					case 3 :	reg[rt] = binToUnsInt(buffer,  7,  0);	break;
 				}
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				break;
 			case 0x2b :		// sw
 				memory[ reg[rs]/4 + immediate/4 ] = reg[rt];
 				// err
 				errorList[1] = isOverflow(reg[rs], immediate);
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				errorList[4] = (reg[rs]+immediate)%4 != 0 ? 1 : 0 ;
 				break;
 			case 0x29 :		// sh
 				memory[ reg[rs]/4 + immediate/4 ] = (reg[rt] & 0x0000FFFF) << 16 ;
 				// err
 				errorList[1] = isOverflow(reg[rs], immediate);
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
-				errorList[4] = (reg[rs]+immediate)%2 != 0 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
+				errorList[4] = (reg[rs] + immediate)%2 != 0 ? 1 : 0 ;
 				break;
 			case 0x28 :		// sb
 				memory[ reg[rs]/4 + immediate/4 ] = reg[rt] & 0x000000FF << 24 ;
 				// err
 				errorList[1] = isOverflow(reg[rs], immediate);
-				errorList[3] = (reg[rs] + immediate) > 1023 ? 1 : 0 ;
+				errorList[3] = (reg[rs] + immediate)/4 > 254 ? 1 : 0 ;
 				break;
 			case 0x0f :		// lui
 				reg[rt] = immediate << 16;
-				printf("%d($%02d): 0x%08X\n", immediate, rt, reg[rt]);
 				break;
 			case 0x0c :		// andi
+				immediate = binToUnsInt(bin, 15, 0);
 				reg[rt] = reg[rs] & immediate;
 				break;
 			case 0x0d :		// ori
+				immediate = binToUnsInt(bin, 15, 0);
 				reg[rt] = reg[rs] | immediate;
 				break;
 			case 0x0e :		// nori
+				immediate = binToUnsInt(bin, 15, 0);
 				reg[rt] = ~( reg[rs] | immediate );
 				break;
 			case 0x0a :		// slti
@@ -260,7 +263,7 @@ int readInst(int index)	// four bytes
 		else if (opcode != 0x3f)
 			printRpt(555, 555, 555);
 	}
-	return nextIndex;
+	return ( errorList[3] || errorList[4] ) ? -999 : nextIndex ;
 }
 int isOverflow(int a, int b)
 {
@@ -279,8 +282,9 @@ void printErr(void)
 				case 0:	fprintf(file, "In cycle %d: Write $0 Error\n", cycle);				break;
 				case 1:	fprintf(file, "In cycle %d: Number Overflow\n", cycle);				break;
 				case 2:	fprintf(file, "In cycle %d: Overwrite HI-LO registers\n", cycle);	break;
-				case 3:	fprintf(file, "In cycle %d: Address Overflow\n", cycle);			exit(1);
-				case 4:	fprintf(file, "In cycle %d: Misalignment Error\n", cycle);			exit(1);
+				// todo check for max of the memory address
+				case 3:	fprintf(file, "In cycle %d: Address Overflow\n", cycle);			break;
+				case 4:	fprintf(file, "In cycle %d: Misalignment Error\n", cycle);			break;
 			}
 	fclose(file);
 }
@@ -290,6 +294,7 @@ void printRpt(int hilo, int _dest, int index)
 		errorList[0] = 1;
 		reg[0] = 0;
 	}	printErr();
+	if (errorList[3] || errorList[4])	return;
 	FILE * file = fopen("snapshot.rpt", "a+");
 	fprintf(file, "cycle %d\n", cycle);
 	if (index == 999) {
